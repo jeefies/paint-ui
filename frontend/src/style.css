@@ -1,6 +1,5 @@
 html {
-    background-color: rgba(27, 38, 54, 1);
-    text-align: center;
+    background-color: gray;
     color: white;
 }
 
@@ -18,9 +17,4 @@ body {
     font-weight: 400;
     src: local(""),
     url("assets/fonts/nunito-v16-latin-regular.woff2") format("woff2");
-}
-
-#app {
-    height: 100vh;
-    text-align: center;
 }

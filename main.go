@@ -2,9 +2,6 @@ package main
 
 import (
 	"embed"
-	"bytes"
-	"strings"
-	"encoding/base64"
 
 	"jeefy/drawer"
 
@@ -16,28 +13,12 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
-type ImgBase64 struct {
-	api *drawer.Api
-}
-
-func (img *ImgBase64) GetBoard() string {
-	var data bytes.Buffer
-	var res strings.Builder
-	img.api.SaveBoard(data)
-
-	encoder := base64.NewEncoder(base64.StdEncoding, res)
-	data.WriteTo(encoder)
-	encoder.Close()
-
-	return res.String()
-}
-
 func main() {
 	// Create an instance of the app structure
 	app := NewApp()
 	api := drawer.NewApi()
 	draw := drawer.NewDrawer(api)
-	base := &ImgBase64{api}
+	base := NewImgBase64(api, draw)
 
 	// Create application with options
 	err := wails.Run(&options.App{
