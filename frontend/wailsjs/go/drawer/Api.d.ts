@@ -6,6 +6,8 @@ export function GetPixel(arg1:number,arg2:number):Promise<number>;
 
 export function GetToken(arg1:number,arg2:string):Promise<boolean|string>;
 
+export function GetTokenOrEmpty(arg1:number,arg2:string):Promise<string>;
+
 export function ReadToken():Promise<void>;
 
 export function SaveBoard(arg1:io.Writer):Promise<void>;

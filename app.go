@@ -4,9 +4,13 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"bufio"
 	"bytes"
 	"strings"
 	"encoding/base64"
+	"image"
+	"image/png"
+	_ "image/jpeg"
 
 	"jeefy/drawer"
 )
@@ -50,30 +54,48 @@ func (img *ImgBase64) GetBoard() string {
 	return res.String()
 }
 
-func (img *ImgBase64) FromBase64(str string) string {
-	decoded, err := base64.StdEncoding.DecodeString(str)
+func (this *ImgBase64) FromBase64(str string) string {
+	img, _, err := image.Decode(base64.NewDecoder(base64.StdEncoding, strings.NewReader(str)))
 	if err != nil {
-		fmt.Println("Decode Error !!!", err)
-		return err.Error()
+		fmt.Println("Error:", err)
+		return ""
 	}
 
-	f, err := os.CreateTemp("", "draw-*.png")
+	tmp, err := os.CreateTemp("", "draw*.png")
 	if err != nil {
-		fmt.Println("Create tmp image failed !!!", err)
-		return err.Error()
+		fmt.Println("Create Temp Failed ??? ", err)
+		return ""
 	}
-	f.Write(decoded)
-	f.Close()
 
-	path := f.Name()
+	path := tmp.Name()
 	defer os.Remove(path)
-	fmt.Println("CreateTemp File at", path)
 
-	if ok, msg := img.draw.SetImage(path); !ok {
-		return "Error: " + msg
+	fmt.Println("Create Temp Image at", path)
+
+	if err := png.Encode(tmp, img); err != nil {
+		tmp.Close()
+		return ""
 	}
 
-	return ""
+	tmp.Close()
+	err = this.draw.SetImage(path)
+	if err != nil {
+		fmt.Println("Set Image Failed")
+		return ""
+	}
+
+	fp, err := os.Open(path)
+	if err != nil {
+		fmt.Println("Open Temp file failed...", err)
+		return ""
+	}
+
+	var result strings.Builder
+	encoder := base64.NewEncoder(base64.StdEncoding, &result)
+	bufio.NewReader(fp).WriteTo(encoder)
+	encoder.Close()
+
+	return result.String()
 }
 
 func NewImgBase64(api *drawer.Api, draw *drawer.ImageDrawer) (*ImgBase64) {

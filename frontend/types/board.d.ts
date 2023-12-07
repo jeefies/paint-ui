@@ -1,12 +1,30 @@
 import { LitElement } from 'lit';
 import './style.css';
+export declare class TokenAdder extends LitElement {
+    static styles: import("lit").CSSResult;
+    _tokens?: {
+        uid: string;
+        token: string;
+    }[];
+    updateTokens(): void;
+    addToken(): void;
+    render(): import("lit-html").TemplateResult<1>;
+}
 export declare class ImageBoard extends LitElement {
-    X: number;
-    Y: number;
     static styles: import("lit").CSSResult;
     imgSrc: string;
-    errMsg: string;
+    showImg: boolean;
+    X: number;
+    Y: number;
+    drawingStatus: number;
+    drawingRemain: number;
+    _startListen: number;
     setImage(): void;
+    setX(event: Event): void;
+    setY(event: Event): void;
+    setShow(event: Event): void;
+    setDrawStat(): void;
+    statusListener(): void;
     render(): import("lit-html").TemplateResult<1>;
 }
 export declare class PaintBoard extends LitElement {

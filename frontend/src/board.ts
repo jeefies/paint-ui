@@ -1,16 +1,71 @@
 import {css, html, LitElement} from 'lit'
-import {Update} from "../wailsjs/go/drawer/Api"
+import {Update, ReadToken, GetTokenOrEmpty} from "../wailsjs/go/drawer/Api"
+import {Start, Reset, WorkStatus, GetTokens} from "../wailsjs/go/drawer/ImageDrawer"
 import {GetBoard, FromBase64} from "../wailsjs/go/main/ImgBase64"
 import {customElement, property} from 'lit/decorators.js'
-
+import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import {styleMap} from 'lit/directives/style-map.js';
 import './style.css';
 
+ReadToken();
+
+@customElement('token-adder')
+export class TokenAdder extends LitElement {
+    static styles = css`
+        #tokenAdder {
+            position: absolute;
+            left: 1030px;
+            top: 30px;
+            width: 200px;
+            height: 600px;
+            border: 2px dotted white;
+            border-radius: 30px;
+        }
+    `
+
+    @property()
+    _tokens ?: { uid: string, token: string }[]
+
+    updateTokens() {
+        GetTokens().then((tokens) => {
+            let arr = []
+            for (let key in tokens) {
+                arr.push({uid: key, token: tokens[key]});
+            }
+            this._tokens = arr;
+        })
+    }
+
+    addToken() {
+        let uidElem = this.shadowRoot?.getElementById('token-uid') as HTMLInputElement;
+        let pasteElem = this.shadowRoot?.getElementById('token-paste') as HTMLInputElement;
+        if (uidElem == null || pasteElem == null) return ;
+
+        GetTokenOrEmpty(parseInt(uidElem.value), pasteElem.value).then((tok) => {
+            if (tok != "") this.updateTokens();
+        });
+    }
+
+    render() {
+        this._tokens = [];
+        this.updateTokens();
+        return html`
+            <div id="tokenAdder">
+                <div>
+                    <p> <label>UID: </label> <input type="number" id="token-uid"> </p>
+                    <p> <label>Paste: </label> <input type="text" id="token-paste"> </p>
+                    <p> <button @click=${this.addToken}>Add</button> </p>
+                </div>
+                <ul>
+                    ${this._tokens.map((item) => html`<li>${item.uid}: ${item.token}</li>`)}
+                </ul>
+            </div>
+        `
+    }
+}
+
 @customElement('image-board')
 export class ImageBoard extends LitElement {
-    X = 0
-    Y = 0
-
     static styles = css`
         #draw-image {
             position: absolute;
@@ -21,7 +76,7 @@ export class ImageBoard extends LitElement {
             left: 500px;
             top: 630px;
             border: 2px dotted;
-            border-radius: 2px;
+            border-radius: 20px;
         }
     `
 
@@ -29,10 +84,24 @@ export class ImageBoard extends LitElement {
     imgSrc = ""
 
     @property()
-    errMsg = ""
+    showImg = false
+
+    @property()
+    X = 0
+
+    @property()
+    Y = 0
+
+    @property()
+    drawingStatus = 0
+
+    @property()
+    drawingRemain = 0
+
+    _startListen = 0
 
     setImage() {
-        let elem = this.shadowRoot?.getElementById('imageInput') as HTMLInputElement;
+        const elem = this.shadowRoot?.getElementById("imageInput") as HTMLInputElement;
         if (elem == null) return ;
         let files = elem.files;
         if (files == null) return ;
@@ -43,25 +112,94 @@ export class ImageBoard extends LitElement {
         reader.onload = () => {
             if (reader.result == null) return ;
             const res = (reader.result as string).split(",")[1];
-            FromBase64(res).then((msg) => {
-                this.errMsg = msg == "" ? "OK !" : msg;
+            FromBase64(res).then((data) => {
+                this.imgSrc = data;
             });
         }
     }
 
+    setX(event: Event) {
+        const input = event.target as HTMLInputElement;
+        let val = parseInt(input.value);
+        if (val >= 1000) val = 1000, input.value = "1000";
+        if (val < 0) val = 0, input.value = "0";
+        this.X = val;
+    }
+
+    setY(event: Event) {
+        const input = event.target as HTMLInputElement;
+        let val = parseInt(input.value);
+        if (val >= 600) val = 600, input.value = "600";
+        if (val < 0) val = 0, input.value = "0";
+        this.Y = val;
+    }
+
+    setShow(event: Event) {
+        this.showImg = (event.target as HTMLInputElement).checked;
+    }
+
+    setDrawStat() {
+        var statMsg = "确定终止？";
+        if (this.drawingStatus == 0) {
+            statMsg = `确定要画目标图片？当前位置：(${this.X}, ${this.Y})`;
+            if (this.imgSrc == "") {
+                alert("还什么图片都没有选 QwQ");
+                return ;
+            }
+        }
+
+        var ok = confirm(statMsg);
+        if (ok == true) {
+            if (this.drawingStatus == 0) Start();
+            else Reset();
+        }
+    }
+
+    statusListener() {
+        WorkStatus().then((stat) => {
+            if (stat == -1) {
+                this.drawingStatus = 0;
+            } else if (stat == 0) {
+                this.drawingStatus = 2;
+            } else if (stat == -2){
+                this.drawingStatus = 0;
+                Reset();
+                alert("Token 呢？")
+            } else {
+                this.drawingStatus = 1;
+                this.drawingRemain = stat;
+            }
+        });
+    }
+
     render() {
-        var img = ""
-        const imageStyles = styleMap({ left: `calc(10px + ${this.X}px)`, top: `calc(10px + ${this.Y}px)` })
-        if (this.imgSrc != "") {
-            img = `<img src='${this.imgSrc}' id='draw-image' style=${imageStyles}></img>`
+        if (!this._startListen) {
+            setInterval(this.statusListener, 1000);
+            this._startListen = 1;
+        }
+
+        var img = ``
+        const imageStyles = { left: `calc(10px + ${this.X}px)`, top: `calc(10px + ${this.Y}px)` }
+
+        if (this.imgSrc != "" && this.showImg) {
+            img = `<img src="data:image/png;base64,${this.imgSrc}"}></img>`
+        }
+
+        var drawMsg = "click to start";
+        if (this.drawingStatus == 1) {
+            drawMsg = "drawing...remain >= " + this.drawingRemain + "s";
+        } else if (this.drawingStatus == 2) {
+            drawMsg = "finished...click to stop maintain";
         }
 
         return html`
-            ${img}
+            <div id="draw-image" style=${styleMap(imageStyles)}> ${unsafeHTML(img)} </div>
             <div id="image-setter">
-                <p>${this.errMsg}</p>
                 <input type="file" id="imageInput" accept="image/png, image/jpeg" />
                 <button @click=${this.setImage}>设置图片</button>
+                <p> <label>横坐标 X:</lable><input @input=${this.setX} placeholder=0 type="number"> </p>
+                <p> <label>纵坐标 Y:</lable><input @input=${this.setY} placeholder=0 type="number"> </p>
+                <p> <label><input type="checkbox" @change=${this.setShow}> 显示预览</label>  <button @click=${this.setDrawStat}> ${drawMsg} </button> </p>
             </div>
         `
     }
@@ -132,6 +270,7 @@ export class PaintBoard extends LitElement {
         } else if (this.flushStatus == 3) {
             stat = "刷新成功！";
         }
+
         return html`
         <div class="paint-board">
             <img id="board" src="data:image/png;base64,${this.imageData}">

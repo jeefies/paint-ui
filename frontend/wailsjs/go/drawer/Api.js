@@ -10,6 +10,10 @@ export function GetToken(arg1, arg2) {
   return window['go']['drawer']['Api']['GetToken'](arg1, arg2);
 }
 
+export function GetTokenOrEmpty(arg1, arg2) {
+  return window['go']['drawer']['Api']['GetTokenOrEmpty'](arg1, arg2);
+}
+
 export function ReadToken() {
   return window['go']['drawer']['Api']['ReadToken']();
 }

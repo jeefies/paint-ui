@@ -29,3 +29,7 @@ export function SetImage(arg1) {
 export function Start() {
   return window['go']['drawer']['ImageDrawer']['Start']();
 }
+
+export function WorkStatus() {
+  return window['go']['drawer']['ImageDrawer']['WorkStatus']();
+}
