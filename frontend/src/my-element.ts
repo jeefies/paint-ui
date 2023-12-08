@@ -1,5 +1,4 @@
 import {css, html, LitElement} from 'lit'
-import logo from './assets/images/logo-universal.png'
 import {Greet} from "../wailsjs/go/main/App";
 import {customElement, property} from 'lit/decorators.js'
 import './style.css';
@@ -83,9 +82,9 @@ export class MyElement extends LitElement {
     }
 
     render() {
+                // <img id="logo" src=${logo} alt="Wails logo">
         return html`
             <main>
-                <img id="logo" src=${logo} alt="Wails logo">
                 <div class="result" id="result">${this.resultText}</div>
                 <div class="input-box" id="input">
                     <input class="input" id="name" type="text" autocomplete="off"/>

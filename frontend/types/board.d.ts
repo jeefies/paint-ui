@@ -1,17 +1,18 @@
 import { LitElement } from 'lit';
-import './style.css';
+import './assets/layui/layui.js';
 export declare class TokenAdder extends LitElement {
-    static styles: import("lit").CSSResult;
+    static styles: import("lit").CSSResult[];
     _tokens?: {
         uid: string;
         token: string;
     }[];
     updateTokens(): void;
     addToken(): void;
+    _tokenListening: number;
     render(): import("lit-html").TemplateResult<1>;
 }
 export declare class ImageBoard extends LitElement {
-    static styles: import("lit").CSSResult;
+    static styles: import("lit").CSSResult[];
     imgSrc: string;
     showImg: boolean;
     X: number;
@@ -24,11 +25,11 @@ export declare class ImageBoard extends LitElement {
     setY(event: Event): void;
     setShow(event: Event): void;
     setDrawStat(): void;
-    statusListener(): void;
+    statusListener(self: ImageBoard): void;
     render(): import("lit-html").TemplateResult<1>;
 }
 export declare class PaintBoard extends LitElement {
-    static styles: import("lit").CSSResult;
+    static styles: import("lit").CSSResult[];
     timerID: number;
     flushInterval: number;
     flushStatus: number;

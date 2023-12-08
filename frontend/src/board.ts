@@ -1,27 +1,44 @@
-import {css, html, LitElement} from 'lit'
+import {css, html, LitElement, unsafeCSS} from 'lit'
 import {Update, ReadToken, GetTokenOrEmpty} from "../wailsjs/go/drawer/Api"
 import {Start, Reset, WorkStatus, GetTokens} from "../wailsjs/go/drawer/ImageDrawer"
 import {GetBoard, FromBase64} from "../wailsjs/go/main/ImgBase64"
 import {customElement, property} from 'lit/decorators.js'
 import {unsafeHTML} from 'lit/directives/unsafe-html.js';
 import {styleMap} from 'lit/directives/style-map.js';
-import './style.css';
+
+import './assets/layui/layui.js';
+import _layuiCSS from './assets/layui/css/layui.css';
+
+const layuiCSS = unsafeCSS(_layuiCSS);
 
 ReadToken();
 
+function layuiInputHTML(label: string, inputType: string, inputID: string, placeholder: string) {
+    return html`
+        <div class="layui-form-item">
+            <label class="layui-form-label">${label}</label>
+            <div class="layui-input-block">
+                <input type="${inputType}" id="${inputID}" placeholder="${placeholder}" autocomplete="off" class="layui-input">
+            </div>
+        </div>
+    `
+}
+
 @customElement('token-adder')
 export class TokenAdder extends LitElement {
-    static styles = css`
+    static styles = [layuiCSS, css`
         #tokenAdder {
+            font-family: 'Ubuntu', 'Source Code Pro', 'Cascadia Code', 'Consolas', 'monospace';
             position: absolute;
             left: 1030px;
             top: 30px;
-            width: 200px;
-            height: 600px;
+            width: 450px;
+            height: auto;
             border: 2px dotted white;
-            border-radius: 30px;
+            border-radius: 24px;
+            padding: 12px;
         }
-    `
+    `]
 
     @property()
     _tokens ?: { uid: string, token: string }[]
@@ -42,23 +59,44 @@ export class TokenAdder extends LitElement {
         if (uidElem == null || pasteElem == null) return ;
 
         GetTokenOrEmpty(parseInt(uidElem.value), pasteElem.value).then((tok) => {
-            if (tok != "") this.updateTokens();
+            if (tok != "") alert("Got Token: " + tok), this.updateTokens();
+            else alert("Failed...")
         });
     }
 
+    _tokenListening = 0
     render() {
-        this._tokens = [];
-        this.updateTokens();
+        if (this._tokenListening == 0 || this._tokens == null) {
+            this.updateTokens();
+            setInterval(this.updateTokens, 2000);
+            this._tokenListening = 1;
+        }
         return html`
             <div id="tokenAdder">
-                <div>
-                    <p> <label>UID: </label> <input type="number" id="token-uid"> </p>
-                    <p> <label>Paste: </label> <input type="text" id="token-paste"> </p>
-                    <p> <button @click=${this.addToken}>Add</button> </p>
-                </div>
-                <ul>
-                    ${this._tokens.map((item) => html`<li>${item.uid}: ${item.token}</li>`)}
-                </ul>
+                <form class="layui-form" action="">
+                    ${layuiInputHTML("UID", "number", "token-uid", "0")}
+                    ${layuiInputHTML("Paste", "text", "token-paste", "xxxxxxxx")}
+                    <div class="layui-form-item">
+                        <div class="layui-input-block">
+                            <button class="layui-btn" @click=${this.addToken}>Add</button>
+                        </div>
+                    </div>
+                </form>
+                <table cellpadding="10" class="layui-table" lay-even>
+                    <colgroup>
+                        <col width="40">
+                        <col>
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>UID</th>
+                            <th>Token<//th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    ${this._tokens != null ? this._tokens.map((item) => html`<tr> <td>${item.uid}</td> <td>${item.token}</td> </tr>`) : ''}
+                    </tbody>
+                </table>
             </div>
         `
     }
@@ -66,19 +104,20 @@ export class TokenAdder extends LitElement {
 
 @customElement('image-board')
 export class ImageBoard extends LitElement {
-    static styles = css`
+    static styles = [layuiCSS, css`
         #draw-image {
             position: absolute;
         }
 
         #image-setter {
             position: absolute;
-            left: 500px;
-            top: 630px;
+            left: 450px;
+            top: 620px;
             border: 2px dotted;
             border-radius: 20px;
+            padding: 10px;
         }
-    `
+    `]
 
     @property()
     imgSrc = ""
@@ -140,6 +179,7 @@ export class ImageBoard extends LitElement {
 
     setDrawStat() {
         var statMsg = "确定终止？";
+        console.log("set draw stat:", this.drawingStatus)
         if (this.drawingStatus == 0) {
             statMsg = `确定要画目标图片？当前位置：(${this.X}, ${this.Y})`;
             if (this.imgSrc == "") {
@@ -155,26 +195,28 @@ export class ImageBoard extends LitElement {
         }
     }
 
-    statusListener() {
+    statusListener(self: ImageBoard) {
         WorkStatus().then((stat) => {
             if (stat == -1) {
-                this.drawingStatus = 0;
+                self.drawingStatus = 0;
             } else if (stat == 0) {
-                this.drawingStatus = 2;
+                self.drawingStatus = 2;
             } else if (stat == -2){
-                this.drawingStatus = 0;
+                self.drawingStatus = 0;
                 Reset();
                 alert("Token 呢？")
             } else {
-                this.drawingStatus = 1;
-                this.drawingRemain = stat;
+                self.drawingStatus = 1;
+                self.drawingRemain = stat;
             }
+
+            console.log(stat, self.drawingStatus);
         });
     }
 
     render() {
         if (!this._startListen) {
-            setInterval(this.statusListener, 1000);
+            setInterval(() => this.statusListener(this), 1000);
             this._startListen = 1;
         }
 
@@ -191,15 +233,45 @@ export class ImageBoard extends LitElement {
         } else if (this.drawingStatus == 2) {
             drawMsg = "finished...click to stop maintain";
         }
+        console.log("msg: ", drawMsg, "status: ", this.drawingStatus);
 
+
+            // ${layuiCSS}
         return html`
             <div id="draw-image" style=${styleMap(imageStyles)}> ${unsafeHTML(img)} </div>
             <div id="image-setter">
-                <input type="file" id="imageInput" accept="image/png, image/jpeg" />
-                <button @click=${this.setImage}>设置图片</button>
-                <p> <label>横坐标 X:</lable><input @input=${this.setX} placeholder=0 type="number"> </p>
-                <p> <label>纵坐标 Y:</lable><input @input=${this.setY} placeholder=0 type="number"> </p>
-                <p> <label><input type="checkbox" @change=${this.setShow}> 显示预览</label>  <button @click=${this.setDrawStat}> ${drawMsg} </button> </p>
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                        <input type="file" id="imageInput" style="layui-input" accept="image/png, image/jpeg" />
+                        <button @click=${this.setImage}>设置图片</button>
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">横坐标 X</label>
+                    <div class="layui-input-block">
+                        <input type="number" @input=${this.setX} placeholder=0 autocomplete="off" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">纵坐标 Y</label>
+                    <div class="layui-input-block">
+                        <input type="number" @input=${this.setY} placeholder=0 autocomplete="off" class="layui-input">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                         <button class="layui-btn" @click=${() => {
+                             this.showImg = !this.showImg;
+                        }}>
+                         ${this.showImg ? "关闭预览" : "开启预览"}
+                         </button>
+
+                         <button class="layui-btn" @click=${this.setDrawStat}> ${drawMsg} </button>
+                    </div>
+                </div>
             </div>
         `
     }
@@ -207,17 +279,22 @@ export class ImageBoard extends LitElement {
 
 @customElement('paint-board')
 export class PaintBoard extends LitElement {
-    static styles = css`
-    .paint-board {
-        position: absolute;
-        left: 10px;
-        top: 10px;
-    }
-    #board {
-    width: 1000px;
-    height: 600px;
-    }
-    `
+    static styles = [layuiCSS, css`
+        .paint-board {
+            position: absolute;
+            left: 10px;
+            top: 10px;
+        }
+        #board {
+            width: 1000px;
+            height: 600px;
+        }
+
+        #interval-setter {
+            width: 400px;
+        }
+    `]
+
     timerID = -1
 
     @property()
@@ -271,14 +348,29 @@ export class PaintBoard extends LitElement {
             stat = "刷新成功！";
         }
 
+            // ${layuiCSS}
         return html`
         <div class="paint-board">
             <img id="board" src="data:image/png;base64,${this.imageData}">
-            <p>当前刷新间隔：${this.flushInterval} 秒 </p>
-            <p>${stat}</p>
-            <div class="interval-setter">
-                <input class="interval-input" id="interval" type="number" value="${this.flushInterval}"/>
-                <button @click=${this.changeInterval} >${msg}</button>
+
+            <div class="layui-form" id="interval-setter">
+                <div class="layui-form-item">
+                    <label class="layui-form-label">${stat}</label>
+                    <div class="layui-input-block"></div>
+                </div>
+
+                <div class="layui-form-item">
+                    <label class="layui-form-label">刷新间隔</label>
+                    <div class="layui-input-block">
+                        <input class="layui-input" id="interval" type="number" value="${this.flushInterval}">
+                    </div>
+                </div>
+
+                <div class="layui-form-item">
+                    <div class="layui-input-block">
+                        <button class="layui-btn" @click=${this.changeInterval} >${msg}</button>
+                    </div>
+                </div>
             </div>
         <div>
         `
