@@ -22,6 +22,10 @@ export function Reset() {
   return window['go']['drawer']['ImageDrawer']['Reset']();
 }
 
+export function SetIgnore(arg1) {
+  return window['go']['drawer']['ImageDrawer']['SetIgnore'](arg1);
+}
+
 export function SetImage(arg1) {
   return window['go']['drawer']['ImageDrawer']['SetImage'](arg1);
 }

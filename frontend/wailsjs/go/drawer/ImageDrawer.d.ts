@@ -11,6 +11,8 @@ export function ImageSize():Promise<number|number>;
 
 export function Reset():Promise<void>;
 
+export function SetIgnore(arg1:boolean):Promise<void>;
+
 export function SetImage(arg1:string):Promise<void>;
 
 export function Start():Promise<void>;
